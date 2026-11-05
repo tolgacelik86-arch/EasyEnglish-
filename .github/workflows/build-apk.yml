@@ -1,4 +1,4 @@
-name: Build EasyEnglish Full APK
+name: Build EasyEnglish Official APK
 
 on:
   push:
@@ -9,16 +9,24 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
+      - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: 'zulu'
           java-version: '17'
 
-      - name: Build Web App Source
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Ionic & Capacitor CLI
+        run: npm install -g @ionic/cli @capacitor/cli
+
+      - name: Build Full Web App
         run: |
           mkdir -p www
           cat << 'EOF' > www/index.html
@@ -33,7 +41,7 @@ jobs:
             <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
             <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
           </head>
-          <body class="bg-slate-900 text-white min-h-screen selection:bg-indigo-500">
+          <body class="bg-slate-900 text-white min-h-screen">
             <div id="root"></div>
             <script type="text/babel">
               const { useState, useEffect } = React;
@@ -46,23 +54,11 @@ jobs:
                   { word: 'House', meaning: 'Ev', example: 'Their house is near the park.', img: '🏠' },
                   { word: 'Friend', meaning: 'Arkadaş', example: 'He is my best friend.', img: '🤝' }
                 ],
-                A2: [
-                  { word: 'Travel', meaning: 'Seyahat etmek', example: 'We love to travel in summer.', img: '✈️' },
-                  { word: 'Market', meaning: 'Pazar / Market', example: 'I bought fruits from the market.', img: '🛒' }
-                ],
-                B1: [
-                  { word: 'Achieve', meaning: 'Başarmak', example: 'You can achieve your goals.', img: '🎯' },
-                  { word: 'Opportunity', meaning: 'Fırsat', example: 'Don't miss this opportunity.', img: '🌟' }
-                ],
-                B2: [
-                  { word: 'Environment', meaning: 'Çevre', example: 'We must protect our environment.', img: '🌍' }
-                ],
-                C1: [
-                  { word: 'Substantial', meaning: 'Önemli / Büyük', example: 'A substantial amount of progress was made.', img: '📊' }
-                ],
-                C2: [
-                  { word: 'Ubiquitous', meaning: 'Her yerde bulunan', example: 'Smartphones are now ubiquitous.', img: '📱' }
-                ]
+                A2: [{ word: 'Travel', meaning: 'Seyahat etmek', example: 'We love to travel in summer.', img: '✈️' }],
+                B1: [{ word: 'Achieve', meaning: 'Başarmak', example: 'You can achieve your goals.', img: '🎯' }],
+                B2: [{ word: 'Environment', meaning: 'Çevre', example: 'We must protect our environment.', img: '🌍' }],
+                C1: [{ word: 'Substantial', meaning: 'Önemli / Büyük', example: 'Substantial progress was made.', img: '📊' }],
+                C2: [{ word: 'Ubiquitous', meaning: 'Her yerde bulunan', example: 'Smartphones are ubiquitous.', img: '📱' }]
               };
 
               function EasyEnglishApp() {
@@ -70,39 +66,24 @@ jobs:
                 const [activeTab, setActiveTab] = useState('vocabulary');
                 const [selectedLevel, setSelectedLevel] = useState('A1');
                 const [searchTerm, setSearchTerm] = useState('');
-                const [completedLessons, setCompletedLessons] = useState([]);
                 const [streak, setStreak] = useState(1);
-                
-                // Lesson Timer (180 sec)
                 const [timeLeft, setTimeLeft] = useState(180);
                 const [timerActive, setTimerActive] = useState(false);
-
-                // Quiz states
-                const [quizIndex, setQuizIndex] = useState(0);
-                const [score, setScore] = useState(0);
-                const [quizFinished, setQuizFinished] = useState(false);
 
                 useEffect(() => {
                   let timer;
                   if (timerActive && timeLeft > 0) {
                     timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
-                  } else if (timeLeft === 0) {
-                    setTimerActive(false);
                   }
                   return () => clearInterval(timer);
                 }, [timerActive, timeLeft]);
 
                 const speakWord = (text) => {
                   if ('speechSynthesis' in window) {
-                    const utterance = new SpeechSynthesisUtterance(text);
-                    utterance.lang = 'en-US';
-                    window.speechSynthesis.speak(utterance);
+                    const u = new SpeechSynthesisUtterance(text);
+                    u.lang = 'en-US';
+                    window.speechSynthesis.speak(u);
                   }
-                };
-
-                const handleLogin = (e) => {
-                  e.preventDefault();
-                  setUser({ name: 'Tolga' });
                 };
 
                 if (!user) {
@@ -110,73 +91,53 @@ jobs:
                     <div class="max-w-md mx-auto min-h-screen bg-slate-900 p-6 flex flex-col justify-between text-center">
                       <div class="mt-10">
                         <div class="text-6xl mb-4 animate-bounce">🐒</div>
-                        <h1 class="text-3xl font-extrabold text-indigo-400 tracking-wider">easyenglish</h1>
+                        <h1 class="text-3xl font-extrabold text-indigo-400">easyenglish</h1>
                         <p class="text-xs text-slate-400 mt-2">Öğrenilen Dil: <span class="text-indigo-300 font-bold">İngilizce</span> | Ana Dil: <span class="text-indigo-300 font-bold">Türkçe</span></p>
                       </div>
-
-                      <form onSubmit={handleLogin} class="space-y-4 bg-slate-800/80 p-6 rounded-2xl border border-slate-700/50 shadow-xl">
-                        <h2 class="text-lg font-bold text-slate-200">Kullanıcı Girişi / Kayıt</h2>
-                        <input type="email" placeholder="E-posta Adresi" required class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-indigo-500" />
-                        <input type="password" placeholder="Şifre" required class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-indigo-500" />
-                        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 py-3.5 rounded-xl font-bold shadow-lg shadow-indigo-600/30 transition">
+                      <form onSubmit={(e) => { e.preventDefault(); setUser({ name: 'Tolga' }); }} class="space-y-4 bg-slate-800 p-6 rounded-2xl border border-slate-700">
+                        <h2 class="text-lg font-bold">Kullanıcı Girişi / Kayıt</h2>
+                        <input type="email" placeholder="E-posta Adresi" required class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white" />
+                        <input type="password" placeholder="Şifre" required class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white" />
+                        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 py-3.5 rounded-xl font-bold">
                           Giriş Yap / Derslere Başla
                         </button>
-                        <button type="button" onClick={() => alert('Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.')} class="text-xs text-indigo-400 hover:underline">
-                          Şifremi Unuttum?
-                        </button>
                       </form>
-
                       <footer class="text-[10px] text-slate-500 py-4">
-                        🔒 KVKK ve GDPR Veri Koruma Standartları İle Korunmaktadır
+                        🔒 KVKK & GDPR Korumalı Veri Sistemi
                       </footer>
                     </div>
                   );
                 }
 
                 const currentList = VOCAB_DATA[selectedLevel] || [];
-                const filteredList = currentList.filter(item => 
-                  item.word.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                  item.meaning.toLowerCase().includes(searchTerm.toLowerCase())
-                );
+                const filteredList = currentList.filter(i => i.word.toLowerCase().includes(searchTerm.toLowerCase()) || i.meaning.toLowerCase().includes(searchTerm.toLowerCase()));
 
                 return (
                   <div class="max-w-md mx-auto min-h-screen bg-slate-900 flex flex-col justify-between pb-20">
-                    {/* Header */}
-                    <header class="bg-slate-800/90 border-b border-slate-700/60 p-4 sticky top-0 z-10 flex justify-between items-center backdrop-blur-md">
+                    <header class="bg-slate-800 border-b border-slate-700 p-4 flex justify-between items-center">
                       <div class="flex items-center space-x-2">
                         <span class="text-2xl">🐒</span>
                         <h1 class="font-bold text-indigo-400">easyenglish</h1>
                       </div>
-                      <div class="flex items-center space-x-3 text-xs">
-                        <span class="bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-full font-bold">
-                          🔥 Seri: {streak} Gün
-                        </span>
-                      </div>
+                      <span class="bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-full text-xs font-bold">
+                        🔥 Seri: {streak} Gün
+                      </span>
                     </header>
 
-                    {/* Content */}
                     <main class="p-4 flex-1">
                       {activeTab === 'vocabulary' && (
                         <div class="space-y-4">
                           <div class="flex space-x-2 overflow-x-auto pb-2">
                             {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(lvl => (
-                              <button key={lvl} onClick={() => setSelectedLevel(lvl)} class={`px-4 py-2 rounded-xl text-xs font-bold transition ${selectedLevel === lvl ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>
+                              <button key={lvl} onClick={() => setSelectedLevel(lvl)} class={`px-4 py-2 rounded-xl text-xs font-bold ${selectedLevel === lvl ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
                                 {lvl}
                               </button>
                             ))}
                           </div>
-
-                          <input 
-                            type="text" 
-                            placeholder="Kelime veya Türkçe anlam ara..." 
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            class="w-full p-3 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white focus:outline-none focus:border-indigo-500"
-                          />
-
+                          <input type="text" placeholder="Kelime ara..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} class="w-full p-3 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white" />
                           <div class="space-y-3">
                             {filteredList.map((item, idx) => (
-                              <div key={idx} class="bg-slate-800/60 border border-slate-700/50 p-4 rounded-2xl flex items-center justify-between shadow-sm">
+                              <div key={idx} class="bg-slate-800 border border-slate-700 p-4 rounded-2xl flex items-center justify-between">
                                 <div>
                                   <div class="flex items-center space-x-2">
                                     <span class="text-2xl">{item.img}</span>
@@ -185,9 +146,7 @@ jobs:
                                   <p class="text-sm text-indigo-300 mt-0.5">{item.meaning}</p>
                                   <p class="text-xs text-slate-400 italic mt-1">"{item.example}"</p>
                                 </div>
-                                <button onClick={() => speakWord(item.word)} class="p-3 bg-indigo-600/20 text-indigo-400 rounded-xl hover:bg-indigo-600/30 transition">
-                                  🔊
-                                </button>
+                                <button onClick={() => speakWord(item.word)} class="p-3 bg-indigo-600/20 text-indigo-400 rounded-xl">🔊</button>
                               </div>
                             ))}
                           </div>
@@ -196,24 +155,15 @@ jobs:
 
                       {activeTab === 'lesson' && (
                         <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 text-center space-y-6">
-                          <div class="flex justify-between items-center text-xs text-slate-400 border-b border-slate-700 pb-3">
-                            <span>Ders: 10+ Zengin Kelime Seti</span>
+                          <div class="flex justify-between text-xs text-slate-400 border-b border-slate-700 pb-3">
+                            <span>Ders Modülü</span>
                             <span class="font-mono text-amber-400 font-bold">⏳ {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</span>
                           </div>
-
-                          <div class="py-6">
-                            <h2 class="text-2xl font-extrabold text-white">Minimum 3 Dakikalık Çalışma</h2>
-                            <p class="text-sm text-slate-300 mt-2">Dersi tamamlamak ve rozet kazanmak için sayacı takip edin.</p>
-                          </div>
-
-                          {!timerActive && timeLeft === 180 ? (
-                            <button onClick={() => setTimerActive(true)} class="w-full bg-emerald-600 hover:bg-emerald-500 py-3.5 rounded-xl font-bold transition shadow-lg shadow-emerald-600/30">
-                              3 Dakikalık Dersi Başlat
-                            </button>
+                          <h2 class="text-xl font-bold">3 Dakikalık Çalışma</h2>
+                          {!timerActive ? (
+                            <button onClick={() => setTimerActive(true)} class="w-full bg-emerald-600 py-3.5 rounded-xl font-bold">Dersi Başlat</button>
                           ) : (
-                            <button onClick={() => { setCompletedLessons([...completedLessons, 'L1']); alert('Ders Tamamlandı!'); }} disabled={timeLeft > 0} class={`w-full py-3.5 rounded-xl font-bold transition ${timeLeft === 0 ? 'bg-indigo-600 hover:bg-indigo-500 cursor-pointer' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}`}>
-                              {timeLeft === 0 ? 'Dersi Tamamla ✔' : 'Süre Devam Ediyor...'}
-                            </button>
+                            <button disabled class="w-full bg-slate-700 text-slate-400 py-3.5 rounded-xl font-bold">Süre Devam Ediyor...</button>
                           )}
                         </div>
                       )}
@@ -221,15 +171,12 @@ jobs:
                       {activeTab === 'quiz' && (
                         <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 text-center space-y-6">
                           <h2 class="text-lg font-bold text-indigo-300">Stroop Pekiştirme Sınavı</h2>
-                          <p class="text-xs text-slate-400">Renk yönlendirmesi olmadan doğrudan İngilizce kelimenin doğru Türkçe karşılığını seçin.</p>
-                          
                           <div class="py-4 bg-slate-900 rounded-xl border border-slate-700">
                             <span class="text-2xl font-extrabold text-white">Apple</span>
                           </div>
-
                           <div class="grid grid-cols-2 gap-3">
                             {['Elma', 'Kitap', 'Su', 'Ev'].map((opt, i) => (
-                              <button key={i} onClick={() => alert(opt === 'Elma' ? 'Doğru Cevap! 🎉' : 'Yanlış Cevap! ❌')} class="p-3.5 bg-slate-700 hover:bg-slate-600 rounded-xl text-sm font-semibold text-white transition border border-slate-600">
+                              <button key={i} onClick={() => alert(opt === 'Elma' ? 'Doğru! 🎉' : 'Yanlış! ❌')} class="p-3.5 bg-slate-700 rounded-xl text-sm font-semibold text-white">
                                 {opt}
                               </button>
                             ))}
@@ -238,20 +185,10 @@ jobs:
                       )}
                     </main>
 
-                    {/* Bottom Nav */}
-                    <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-slate-800/95 border-t border-slate-700 flex justify-around py-3 backdrop-blur-md">
-                      <button onClick={() => setActiveTab('vocabulary')} class={`text-xs flex flex-col items-center ${activeTab === 'vocabulary' ? 'text-indigo-400 font-bold' : 'text-slate-400'}`}>
-                        <span>📚</span>
-                        <span class="mt-1">Kelimeler</span>
-                      </button>
-                      <button onClick={() => setActiveTab('lesson')} class={`text-xs flex flex-col items-center ${activeTab === 'lesson' ? 'text-indigo-400 font-bold' : 'text-slate-400'}`}>
-                        <span>⏱️</span>
-                        <span class="mt-1">3 Dk Ders</span>
-                      </button>
-                      <button onClick={() => setActiveTab('quiz')} class={`text-xs flex flex-col items-center ${activeTab === 'quiz' ? 'text-indigo-400 font-bold' : 'text-slate-400'}`}>
-                        <span>🎯</span>
-                        <span class="mt-1">Stroop Sınav</span>
-                      </button>
+                    <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-slate-800 border-t border-slate-700 flex justify-around py-3">
+                      <button onClick={() => setActiveTab('vocabulary')} class={`text-xs ${activeTab === 'vocabulary' ? 'text-indigo-400 font-bold' : 'text-slate-400'}`}>📚 Kelimeler</button>
+                      <button onClick={() => setActiveTab('lesson')} class={`text-xs ${activeTab === 'lesson' ? 'text-indigo-400 font-bold' : 'text-slate-400'}`}>⏱️ 3 Dk Ders</button>
+                      <button onClick={() => setActiveTab('quiz')} class={`text-xs ${activeTab === 'quiz' ? 'text-indigo-400 font-bold' : 'text-slate-400'}`}>🎯 Stroop</button>
                     </nav>
                   </div>
                 );
@@ -263,116 +200,34 @@ jobs:
           </html>
           EOF
 
-      - name: Create Native Android Project Structure
+      - name: Build Capacitor App
         run: |
-          mkdir -p android_build/app/src/main/assets/www
-          mkdir -p android_build/app/src/main/res/mipmap-hdpi
-          cp -r www/* android_build/app/src/main/assets/www/
-
-          cat << 'EOF' > android_build/app/src/main/AndroidManifest.xml
-          <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-              package="com.easyenglish.app">
-              <uses-permission android:name="android.permission.INTERNET" />
-              <application
-                  android:allowBackup="true"
-                  android:icon="@mipmap/ic_launcher"
-                  android:label="easyenglish"
-                  android:supportsRtl="true"
-                  android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
-                  <activity
-                      android:name=".MainActivity"
-                      android:exported="true"
-                      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
-                      </intent-filter>
-                  </activity>
-              </application>
-          </manifest>
-          EOF
-
-          cat << 'EOF' > android_build/app/src/main/java/com/easyenglish/app/MainActivity.java
-          package com.easyenglish.app;
-
-          import android.app.Activity;
-          import android.os.Bundle;
-          import android.webkit.WebSettings;
-          import android.webkit.WebView;
-          import android.webkit.WebViewClient;
-
-          public class MainActivity extends Activity {
-              private WebView mWebView;
-
-              @Override
-              protected void onCreate(Bundle savedInstanceState) {
-                  super.onCreate(savedInstanceState);
-                  mWebView = new WebView(this);
-                  WebSettings webSettings = mWebView.getSettings();
-                  webSettings.setJavaScriptEnabled(true);
-                  webSettings.setDomStorageEnabled(true);
-                  webSettings.setDatabaseEnabled(true);
-                  webSettings.setAllowFileAccess(true);
-                  mWebView.setWebViewClient(new WebViewClient());
-                  mWebView.loadUrl("file:///android_asset/www/index.html");
-                  setContentView(mWebView);
-              }
+          cat << 'EOF' > package.json
+          {
+            "name": "easyenglish",
+            "version": "1.0.0",
+            "dependencies": {
+              "@capacitor/core": "^5.0.0",
+              "@capacitor/android": "^5.0.0"
+            },
+            "devDependencies": {
+              "@capacitor/cli": "^5.0.0"
+            }
           }
           EOF
+          npm install
+          npx cap init easyenglish com.easyenglish.app --web-dir www
+          npx cap add android
+          npx cap copy android
 
-          cat << 'EOF' > android_build/settings.gradle
-          include ':app'
-          EOF
-
-          cat << 'EOF' > android_build/build.gradle
-          buildscript {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-              dependencies {
-                  classpath 'com.android.tools.build:gradle:8.1.1'
-              }
-          }
-          allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          EOF
-
-          cat << 'EOF' > android_build/app/build.gradle
-          apply plugin: 'com.android.application'
-
-          android {
-              namespace 'com.easyenglish.app'
-              compileSdk 34
-
-              defaultConfig {
-                  applicationId "com.easyenglish.app"
-                  minSdk 24
-                  targetSdk 34
-                  versionCode 1
-                  versionName "1.0"
-              }
-
-              buildTypes {
-                  release {
-                      minifyEnabled false
-                  }
-              }
-          }
-          EOF
-
-      - name: Build Official Android APK Package
+      - name: Build Debug APK with Gradle Wrapper
         run: |
-          cd android_build
-          gradle assembleDebug
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
-      - name: Upload Complete EasyEnglish APK
+      - name: Upload EasyEnglish Full APK
         uses: actions/upload-artifact@v4
         with:
           name: easyenglish-full-apk
-          path: android_build/app/build/outputs/apk/debug/app-debug.apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
