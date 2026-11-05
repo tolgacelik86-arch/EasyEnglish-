@@ -1,4 +1,4 @@
-name: Build EasyEnglish Complete App APK
+name: Build EasyEnglish Bright UI APK
 
 on:
   push:
@@ -41,18 +41,17 @@ jobs:
             <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
             <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
           </head>
-          <body class="bg-slate-900 text-white min-h-screen select-none">
+          <body class="bg-slate-50 text-slate-800 min-h-screen select-none font-sans">
             <div id="root"></div>
             <script type="text/babel">
               const { useState, useEffect } = React;
 
-              // Web Audio Synthesizer Ses Altyapısı
-              const playTone = (freq, type = 'sine', duration = 0.15) => {
+              // Ses Altyapısı (Web Speech & Audio Fallback)
+              const playTone = (freq, duration = 0.12) => {
                 try {
                   const ctx = new (window.AudioContext || window.webkitAudioContext)();
                   const osc = ctx.createOscillator();
                   const gain = ctx.createGain();
-                  osc.type = type;
                   osc.frequency.value = freq;
                   osc.connect(gain);
                   gain.connect(ctx.destination);
@@ -62,65 +61,82 @@ jobs:
                 } catch (e) {}
               };
 
-              const playCorrectSound = () => { playTone(523.25, 'triangle', 0.1); setTimeout(() => playTone(659.25, 'triangle', 0.2), 100); };
-              const playWrongSound = () => { playTone(220, 'sawtooth', 0.25); };
+              const playCorrectSound = () => { playTone(523.25); setTimeout(() => playTone(659.25), 100); };
+              const playWrongSound = () => { playTone(220, 0.25); };
 
-              // A1-C2 Kelime Havuzu
-              const GENERATE_VOCAB = (level) => {
-                const base = [
-                  { word: 'Apple', meaning: 'Elma', example: 'I eat an apple every morning.', img: '🍎', options: ['Elma', 'Kitap', 'Su', 'Ev'] },
-                  { word: 'Book', meaning: 'Kitap', example: 'She is reading a book.', img: '📚', options: ['Kalem', 'Kitap', 'Araba', 'Masa'] },
-                  { word: 'Water', meaning: 'Su', example: 'Drink plenty of water.', img: '💧', options: ['Süt', 'Kahve', 'Su', 'Çay'] },
-                  { word: 'House', meaning: 'Ev', example: 'Their house is near the park.', img: '🏠', options: ['Okul', 'Ev', 'Bahçe', 'Sokak'] },
-                  { word: 'Friend', meaning: 'Arkadaş', example: 'He is my best friend.', img: '🤝', options: ['Düşman', 'Öğretmen', 'Arkadaş', 'Komşu'] }
-                ];
-                let list = [];
-                for (let i = 1; i <= 60; i++) {
-                  const b = base[(i - 1) % base.length];
-                  list.push({
-                    id: i,
-                    word: `${b.word} ${i}`,
-                    meaning: `${b.meaning} (${level}-${i})`,
-                    example: b.example,
-                    img: b.img,
-                    options: b.options,
-                    correct: b.meaning
-                  });
+              // Günlük Konuşma Kelimeleri (Sayı Eki Olmayan Temiz Veri Seti)
+              const DAILY_VOCAB = [
+                {
+                  id: 1,
+                  word: 'Hello',
+                  meaning: 'Merhaba',
+                  category: 'Günlük Konuşma',
+                  explanation: 'İnsanlarla karşılaştığımızda kullanılan en temel selamlama sözcüğüdür.',
+                  example: 'Hello! How are you today?',
+                  trExample: 'Merhaba! Bugün nasılsın?',
+                  img: '👋',
+                  options: ['Merhaba', 'Hoşça kal', 'Teşekkürler', 'Evet']
+                },
+                {
+                  id: 2,
+                  word: 'Please',
+                  meaning: 'Lütfen',
+                  category: 'Günlük Konuşma',
+                  explanation: 'Nezaket bildirmek ve bir şey rica etmek için kullanılır.',
+                  example: 'Can you help me, please?',
+                  trExample: 'Lütfen bana yardım edebilir misiniz?',
+                  img: '🙏',
+                  options: ['Hayır', 'Lütfen', 'Günaydın', 'Tamam']
+                },
+                {
+                  id: 3,
+                  word: 'Thank you',
+                  meaning: 'Teşekkür ederim',
+                  category: 'Günlük Konuşma',
+                  explanation: 'Bir iyilik veya yardım karşılığında şükran belirtir.',
+                  example: 'Thank you for your help.',
+                  trExample: 'Yardımın için teşekkür ederim.',
+                  img: '🎁',
+                  options: ['Önemli değil', 'Rica ederim', 'Teşekkür ederim', 'Görüşürüz']
+                },
+                {
+                  id: 4,
+                  word: 'Goodbye',
+                  meaning: 'Hoşça kal',
+                  category: 'Günlük Konuşma',
+                  explanation: 'Ayrılırken kullanılan vedalaşma kelimesidir.',
+                  example: 'Goodbye, see you tomorrow!',
+                  trExample: 'Hoşça kal, yarın görüşürüz!',
+                  img: '🙋‍♂️',
+                  options: ['Merhaba', 'Evet', 'Hoşça kal', 'Lütfen']
+                },
+                {
+                  id: 5,
+                  word: 'Water',
+                  meaning: 'Su',
+                  category: 'Günlük İhtiyaçlar',
+                  explanation: 'Temel yaşam sıvısı.',
+                  example: 'I need a glass of water.',
+                  trExample: 'Bir bardak suya ihtiyacım var.',
+                  img: '💧',
+                  options: ['Kahve', 'Su', 'Çay', 'Meyve suyu']
                 }
-                return list;
-              };
-
-              const VOCAB_BY_LEVEL = {
-                A1: GENERATE_VOCAB('A1'),
-                A2: GENERATE_VOCAB('A2'),
-                B1: GENERATE_VOCAB('B1'),
-                B2: GENERATE_VOCAB('B2'),
-                C1: GENERATE_VOCAB('C1'),
-                C2: GENERATE_VOCAB('C2')
-              };
+              ];
 
               function EasyEnglishApp() {
                 const [user, setUser] = useState(null);
                 const [emailInput, setEmailInput] = useState('');
                 const [passwordInput, setPasswordInput] = useState('');
-                const [mailNotification, setMailNotification] = useState(null);
+                const [loginError, setLoginError] = useState('');
                 
-                // Navigation Tabs: 'vocab' | 'daily'
-                const [activeTab, setActiveTab] = useState('vocab');
-
-                // Vocab Tab States
-                const [selectedLevel, setSelectedLevel] = useState('A1');
-                const [searchTerm, setSearchTerm] = useState('');
-
-                // Daily Lesson States (Duolingo Style)
-                const [activeLesson, setActiveLesson] = useState(null);
-                const [lessonCardIdx, setLessonCardIdx] = useState(0);
+                const [activeTab, setActiveTab] = useState('daily');
+                const [currentCardIdx, setCurrentCardIdx] = useState(0);
                 const [selectedOpt, setSelectedOpt] = useState(null);
-                const [feedback, setFeedback] = useState(null); // 'correct' | 'wrong'
-                const [score, setScore] = useState(151);
+                const [feedback, setFeedback] = useState(null);
+                const [score, setScore] = useState(100);
 
                 const speakWord = (text) => {
-                  playTone(440, 'sine', 0.15);
+                  playTone(440, 0.1);
                   if ('speechSynthesis' in window) {
                     window.speechSynthesis.cancel();
                     const u = new SpeechSynthesisUtterance(text);
@@ -130,13 +146,14 @@ jobs:
                   }
                 };
 
-                const handleRegisterOrLogin = (e) => {
+                const handleLogin = (e) => {
                   e.preventDefault();
-                  if (!emailInput || !passwordInput) return;
-                  setMailNotification({
-                    to: emailInput,
-                    message: `easyenglish hesabınız başarıyla oluşturuldu. Kayıt ve güvenlik detaylarınız e-postanıza iletilmiştir.`
-                  });
+                  // Şifre Güvenlik Kontrolü
+                  if (passwordInput.length < 6) {
+                    setLoginError('Hata: Şifre en az 6 karakter olmalıdır!');
+                    return;
+                  }
+                  setLoginError('');
                   setUser({ email: emailInput });
                 };
 
@@ -155,176 +172,131 @@ jobs:
 
                 if (!user) {
                   return (
-                    <div class="max-w-md mx-auto min-h-screen bg-slate-900 p-6 flex flex-col justify-between text-center">
+                    <div class="max-w-md mx-auto min-h-screen bg-emerald-500 p-6 flex flex-col justify-between text-center">
                       <div class="mt-10">
-                        <div class="text-6xl mb-4 animate-bounce">🐒</div>
-                        <h1 class="text-3xl font-extrabold text-indigo-400">easyenglish</h1>
-                        <p class="text-xs text-slate-400 mt-2">Öğrenilen Dil: <span class="text-indigo-300 font-bold">İngilizce</span> | Ana Dil: <span class="text-indigo-300 font-bold">Türkçe</span></p>
+                        <div class="text-7xl mb-3 animate-bounce">🐒</div>
+                        <h1 class="text-4xl font-extrabold text-white tracking-wide">easyenglish</h1>
+                        <p class="text-sm text-emerald-100 font-medium mt-1">Canlı & Kolay İngilizce Öğrenimi</p>
                       </div>
 
-                      <form onSubmit={handleRegisterOrLogin} class="space-y-4 bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
-                        <h2 class="text-lg font-bold text-slate-200">Giriş Yap / Kaydol</h2>
-                        <input type="email" placeholder="E-posta Adresi" required value={emailInput} onChange={(e) => setEmailInput(e.target.value)} class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white" />
-                        <input type="password" placeholder="Şifre" required value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-white" />
-                        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 py-3.5 rounded-xl font-bold">
-                          Giriş Yap & Mail Bildirimi Al 📩
+                      <form onSubmit={handleLogin} class="space-y-4 bg-white p-6 rounded-3xl shadow-2xl text-left border border-emerald-100">
+                        <h2 class="text-xl font-bold text-slate-800 text-center">Giriş Yap / Kaydol</h2>
+                        
+                        {loginError && (
+                          <div class="p-3 bg-rose-100 border border-rose-300 text-rose-700 text-xs font-bold rounded-xl text-center">
+                            {loginError}
+                          </div>
+                        )}
+
+                        <div>
+                          <label class="text-xs font-bold text-slate-500">E-posta</label>
+                          <input type="email" placeholder="ornek@mail.com" required value={emailInput} onChange={(e) => setEmailInput(e.target.value)} class="w-full p-3.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                        </div>
+
+                        <div>
+                          <label class="text-xs font-bold text-slate-500">Şifre (En az 6 Karakter)</label>
+                          <input type="password" placeholder="••••••••" required value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} class="w-full p-3.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                        </div>
+
+                        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-xl font-bold text-base shadow-lg shadow-emerald-600/30 transition">
+                          Giriş Yap 🚀
                         </button>
                       </form>
 
-                      <footer class="text-[10px] text-slate-500 py-4">🛡️ KVKK & GDPR Korumalı Uçtan Uca Şifreli Veri Sistemi</footer>
+                      <footer class="text-xs text-emerald-100 py-4 font-semibold">🔒 KVKK Korumalı Güvenli Giriş</footer>
                     </div>
                   );
                 }
 
-                const currentVocabList = VOCAB_BY_LEVEL[selectedLevel] || [];
-                const filteredVocab = currentVocabList.filter(i => i.word.toLowerCase().includes(searchTerm.toLowerCase()) || i.meaning.toLowerCase().includes(searchTerm.toLowerCase()));
+                const currentWord = DAILY_VOCAB[currentCardIdx % DAILY_VOCAB.length];
 
                 return (
-                  <div class="max-w-md mx-auto min-h-screen bg-slate-900 flex flex-col justify-between pb-20">
-                    {/* Upper Header */}
-                    <header class="bg-slate-800/95 border-b border-slate-700 p-4 sticky top-0 z-20 backdrop-blur-md flex justify-between items-center">
+                  <div class="max-w-md mx-auto min-h-screen bg-slate-100 flex flex-col justify-between pb-24">
+                    {/* Canlı Üst Bar */}
+                    <header class="bg-white border-b border-slate-200 p-4 sticky top-0 z-20 shadow-sm flex justify-between items-center">
                       <div class="flex items-center space-x-2">
-                        <span class="text-2xl">🐒</span>
-                        <h1 class="font-bold text-indigo-400">easyenglish</h1>
+                        <span class="text-3xl">🐒</span>
+                        <h1 class="font-extrabold text-xl text-emerald-600">easyenglish</h1>
                       </div>
-                      <span class="bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-bold">
+                      <span class="bg-amber-100 text-amber-700 border border-amber-300 px-3.5 py-1 rounded-full text-xs font-bold">
                         👑 {score} Puan
                       </span>
                     </header>
 
-                    {/* Email Confirmation Notification */}
-                    {mailNotification && (
-                      <div class="m-4 p-4 bg-indigo-950 border border-indigo-500 rounded-2xl shadow-xl flex justify-between items-start">
-                        <div>
-                          <h4 class="text-xs font-bold text-indigo-300">📩 E-posta Bildirimi İletildi</h4>
-                          <p class="text-[11px] text-slate-300 mt-1">{mailNotification.message}</p>
-                        </div>
-                        <button onClick={() => setMailNotification(null)} class="text-xs text-slate-400">✕</button>
-                      </div>
-                    )}
-
-                    {/* Main Area */}
+                    {/* Ana İçerik */}
                     <main class="p-4 flex-1">
-                      {/* 1. SEKMELİ KELİMELER BÖLÜMÜ */}
-                      {activeTab === 'vocab' && (
+                      {/* Günlük Kelimeler Ders Modülü */}
+                      {activeTab === 'daily' && (
                         <div class="space-y-4">
-                          <div class="flex space-x-2 overflow-x-auto pb-2">
-                            {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(lvl => (
-                              <button key={lvl} onClick={() => setSelectedLevel(lvl)} class={`px-4 py-2 rounded-xl text-xs font-bold ${selectedLevel === lvl ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'bg-slate-800 text-slate-400'}`}>
-                                {lvl} Seviyesi
+                          <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-md space-y-4">
+                            <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+                              <span class="text-xs font-bold text-emerald-600 uppercase tracking-wider">{currentWord.category}</span>
+                              <span class="text-xs text-slate-400 font-semibold">Kelime {currentCardIdx + 1} / {DAILY_VOCAB.length}</span>
+                            </div>
+
+                            {/* Görsel ve Temiz Kelime */}
+                            <div class="text-center py-4 bg-emerald-50 rounded-2xl border border-emerald-100 space-y-2">
+                              <span class="text-6xl">{currentWord.img}</span>
+                              <h2 class="text-3xl font-black text-slate-800">{currentWord.word}</h2>
+                              <p class="text-lg font-bold text-emerald-600">{currentWord.meaning}</p>
+                              
+                              <button onClick={() => speakWord(currentWord.word)} class="mt-2 bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-emerald-700 flex items-center justify-center space-x-1 mx-auto">
+                                <span>🔊 Sesli Dinle</span>
                               </button>
-                            ))}
+                            </div>
+
+                            {/* Ders Notu & Örnek Cümle */}
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2">
+                              <p class="text-xs font-bold text-slate-500">💡 Ders Açıklaması:</p>
+                              <p class="text-xs text-slate-700 font-medium">{currentWord.explanation}</p>
+                              <hr class="border-slate-200 my-1" />
+                              <p class="text-xs font-bold text-slate-500">📝 Örnek Cümle:</p>
+                              <p class="text-xs text-emerald-700 font-bold italic">"{currentWord.example}"</p>
+                              <p class="text-xs text-slate-600">"{currentWord.trExample}"</p>
+                              <button onClick={() => speakWord(currentWord.example)} class="text-[11px] text-emerald-600 font-bold underline mt-1">
+                                🔊 Örnek Cümleyi Seslendir
+                              </button>
+                            </div>
                           </div>
 
-                          <input type="text" placeholder="Kelime veya Türkçe anlam ara..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} class="w-full p-3 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white focus:outline-none focus:border-indigo-500" />
+                          {/* Pekiştirme Sınavı */}
+                          <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-md space-y-3">
+                            <h3 class="text-sm font-bold text-slate-700 text-center">Pekiştirme Sınavı: Doğru Anlamı Seçin</h3>
+                            <div class="grid grid-cols-2 gap-3">
+                              {currentWord.options.map((opt, i) => (
+                                <button key={i} onClick={() => handleAnswer(opt, currentWord.meaning)} class="p-3.5 rounded-2xl text-sm font-bold border bg-slate-50 text-slate-700 border-slate-200 hover:bg-emerald-50 hover:border-emerald-300 transition">
+                                  {opt}
+                                </button>
+                              ))}
+                            </div>
 
-                          <div class="space-y-3">
-                            {filteredVocab.map((item, index) => (
-                              <React.Fragment key={item.id}>
-                                {/* Her 30 Kelimede Otomatik Sınav Bloğu */}
-                                {index > 0 && index % 30 === 0 && (
-                                  <div class="bg-gradient-to-r from-amber-600 to-indigo-600 p-4 rounded-2xl text-center space-y-2 shadow-xl border border-amber-400">
-                                    <span class="text-3xl">🎯</span>
-                                    <h3 class="font-extrabold text-white text-base">30 Kelimelik Pekiştirme Sınavı</h3>
-                                    <p class="text-xs text-amber-100">Öğrendiğiniz ilk 30 kelimeyi test edin!</p>
-                                    <button onClick={() => alert('30 Kelimelik Sınav Modülü Başlatıldı!')} class="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-800">
-                                      Sınava Başla 🚀
-                                    </button>
+                            {/* Doğru Cevap Sonrası Görsel Açılması */}
+                            {feedback && (
+                              <div class={`p-4 rounded-2xl border flex flex-col items-center space-y-3 ${feedback === 'correct' ? 'bg-emerald-100 border-emerald-400 text-emerald-900' : 'bg-rose-100 border-rose-400 text-rose-900'}`}>
+                                <h4 class="font-extrabold text-sm">{feedback === 'correct' ? 'Tebrikler! Doğru Cevap 🎉' : 'Yanlış Cevap ❌'}</h4>
+                                
+                                {feedback === 'correct' && (
+                                  <div class="bg-white p-3 rounded-xl border border-emerald-200 text-center animate-bounce">
+                                    <span class="text-4xl">{currentWord.img}</span>
+                                    <p class="text-xs font-bold text-slate-800 mt-1">{currentWord.word} = {currentWord.meaning}</p>
                                   </div>
                                 )}
 
-                                {/* Kelime Kartı */}
-                                <div class="bg-slate-800 border border-slate-700 p-4 rounded-2xl flex items-center justify-between">
-                                  <div class="flex items-center space-x-3">
-                                    <span class="text-4xl p-2 bg-slate-900 rounded-xl border border-slate-700">{item.img}</span>
-                                    <div>
-                                      <h3 class="font-bold text-lg text-white">{item.word}</h3>
-                                      <p class="text-sm text-emerald-400 font-medium">{item.meaning}</p>
-                                      <p class="text-xs text-slate-400 italic mt-0.5">"{item.example}"</p>
-                                    </div>
-                                  </div>
-                                  <button onClick={() => speakWord(item.word)} class="p-3 bg-indigo-600/20 text-indigo-400 rounded-xl hover:bg-indigo-600/40">
-                                    🔊
-                                  </button>
-                                </div>
-                              </React.Fragment>
-                            ))}
+                                <button onClick={() => { setCurrentCardIdx(prev => prev + 1); setSelectedOpt(null); setFeedback(null); }} class="w-full py-3 bg-emerald-600 text-white font-bold rounded-xl text-xs shadow-md">
+                                  Sonraki Kelimeye Geç ➔
+                                </button>
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      )}
-
-                      {/* 2. GÜNLÜK DERS ÇALIŞMA BÖLÜMÜ (Duolingo Yolu) */}
-                      {activeTab === 'daily' && (
-                        <div>
-                          {!activeLesson ? (
-                            <div class="flex flex-col items-center space-y-10 py-6 relative">
-                              <div class="absolute top-10 bottom-10 w-1 bg-slate-700/60 rounded-full -z-0"></div>
-                              {['A1 Başlangıç', 'A2 Temel', 'B1 Orta', 'B2 İleri Orta'].map((lvlTitle, idx) => (
-                                <div key={idx} class={`relative z-10 flex flex-col items-center ${idx % 2 === 0 ? '-translate-x-10' : 'translate-x-10'}`}>
-                                  <button onClick={() => { setActiveLesson(lvlTitle); setLessonCardIdx(0); setSelectedOpt(null); setFeedback(null); }} class="w-20 h-20 bg-sky-500 border-4 border-sky-300 rounded-3xl flex items-center justify-center text-3xl shadow-xl ring-4 ring-sky-500/30 active:scale-95 transition">
-                                    {idx === 0 ? '📖' : idx === 1 ? '✈️' : idx === 2 ? '🎯' : '🌍'}
-                                  </button>
-                                  <span class="mt-2 text-xs font-bold bg-slate-800 px-3 py-1 rounded-full border border-slate-700">{lvlTitle}</span>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            /* İnteraktif Ders ve Sınav (Doğru Cevaptan Sonra Resim Gösterme) */
-                            <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 space-y-6">
-                              <div class="flex justify-between items-center border-b border-slate-700 pb-3">
-                                <h3 class="font-bold text-sm text-indigo-400">{activeLesson} Sınavı</h3>
-                                <button onClick={() => setActiveLesson(null)} class="text-xs bg-slate-700 px-2.5 py-1 rounded-lg">Çık</button>
-                              </div>
-
-                              <div class="py-6 bg-slate-900 rounded-2xl border border-slate-700 text-center">
-                                <span class="text-3xl font-extrabold text-white">{currentVocabList[lessonCardIdx % currentVocabList.length].word}</span>
-                                <button onClick={() => speakWord(currentVocabList[lessonCardIdx % currentVocabList.length].word)} class="block mx-auto text-xs text-indigo-400 mt-2">🔊 Dinle</button>
-                              </div>
-
-                              {/* Şıklar */}
-                              <div class="grid grid-cols-2 gap-3">
-                                {currentVocabList[lessonCardIdx % currentVocabList.length].options.map((opt, i) => (
-                                  <button key={i} onClick={() => handleAnswer(opt, currentVocabList[lessonCardIdx % currentVocabList.length].correct)} class="p-4 rounded-xl text-sm border bg-slate-700 text-white border-slate-600 font-medium">
-                                    {opt}
-                                  </button>
-                                ))}
-                              </div>
-
-                              {/* DOĞRU CEVAP VERİLDİKTEN SONRA RESİM GÖSTEREN PANEL */}
-                              {feedback && (
-                                <div class={`p-5 rounded-2xl border flex flex-col items-center space-y-3 ${feedback === 'correct' ? 'bg-emerald-950 border-emerald-500 text-emerald-200' : 'bg-rose-950 border-rose-500 text-rose-200'}`}>
-                                  <div class="flex items-center justify-between w-full">
-                                    <span class="font-bold text-base">{feedback === 'correct' ? 'Tebrikler! Doğru Cevap 🎉' : 'Yanlış Cevap ❌'}</span>
-                                  </div>
-
-                                  {/* Doğru Cevap Sonrası Görsel (Resim) */}
-                                  {feedback === 'correct' && (
-                                    <div class="bg-slate-900/90 p-4 rounded-2xl border border-emerald-500/50 flex flex-col items-center animate-bounce">
-                                      <span class="text-6xl">{currentVocabList[lessonCardIdx % currentVocabList.length].img}</span>
-                                      <p class="text-xs text-slate-300 mt-2 font-bold">{currentVocabList[lessonCardIdx % currentVocabList.length].word} = {currentVocabList[lessonCardIdx % currentVocabList.length].meaning}</p>
-                                    </div>
-                                  )}
-
-                                  <button onClick={() => { setLessonCardIdx(prev => prev + 1); setSelectedOpt(null); setFeedback(null); }} class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-xs font-bold text-white shadow-lg">
-                                    Sonraki Soruya Geç ➔
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
                         </div>
                       )}
                     </main>
 
-                    {/* Bottom Navigation */}
-                    <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-slate-800/95 border-t border-slate-700 flex justify-around py-3 backdrop-blur-md">
-                      <button onClick={() => setActiveTab('vocab')} class={`text-xs flex flex-col items-center ${activeTab === 'vocab' ? 'text-indigo-400 font-bold' : 'text-slate-400'}`}>
-                        <span class="text-lg">📚</span>
-                        <span>Kelimeler</span>
-                      </button>
-                      <button onClick={() => setActiveTab('daily')} class={`text-xs flex flex-col items-center ${activeTab === 'daily' ? 'text-indigo-400 font-bold' : 'text-slate-400'}`}>
-                        <span class="text-lg">⏱️</span>
-                        <span>Günlük Ders</span>
+                    {/* Canlı Alt Menü */}
+                    <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-slate-200 flex justify-around py-3 shadow-lg">
+                      <button onClick={() => setActiveTab('daily')} class={`text-xs flex flex-col items-center ${activeTab === 'daily' ? 'text-emerald-600 font-extrabold' : 'text-slate-400'}`}>
+                        <span class="text-xl">📚</span>
+                        <span>Günlük Dersler</span>
                       </button>
                     </nav>
                   </div>
@@ -368,8 +340,8 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: Upload Complete EasyEnglish APK
+      - name: Upload Bright UI APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: easyenglish-complete-apk
+          name: easyenglish-bright-ui-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
