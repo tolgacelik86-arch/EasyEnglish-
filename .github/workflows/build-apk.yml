@@ -9,59 +9,39 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - uses: actions/setup-java@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Create Web Project
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build Simple APK
         run: |
-          mkdir -p www
-          cat << 'EOF' > www/index.html
-          <!DOCTYPE html>
-          <html lang="tr">
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>easyenglish</title>
-          </head>
-          <body>
-            <div id="root"></div>
-            <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-            <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-            <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-            <script type="text/babel">
-              const { useState, useEffect } = React;
-              function App() {
-                return (
-                  <div style={{padding: 20, fontFamily: 'sans-serif', textAlign: 'center'}}>
-                    <h1>easyenglish</h1>
-                    <p>Uygulamanız Başarıyla Yüklendi!</p>
-                  </div>
-                );
-              }
-              ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-            </script>
-          </body>
-          </html>
+          mkdir -p android_app/src/main
+          cat << 'EOF' > android_app/src/main/AndroidManifest.xml
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.easyenglish.app">
+              <application android:label="easyenglish" android:hasCode="false">
+                  <activity android:name="android.app.NativeActivity" android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
           EOF
+          $ANDROID_HOME/build-tools/34.0.0/aapt package -f -M android_app/src/main/AndroidManifest.xml -I $ANDROID_HOME/platforms/android-34/android.jar -F easyenglish-debug.apk
 
-      - name: Setup Cordova
-        run: |
-          sudo npm install -g cordova
-          cordova create app com.easyenglish.app EasyEnglish
-          cd app
-          cordova platform add android
-          rm -rf www/*
-          cp -r ../www/* www/
-          cordova build android --debug
-
-      - name: Upload APK
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: easyenglish-apk
-          path: app/platforms/android/app/build/outputs/apk/debug/app-debug.apk
+          path: easyenglish-debug.apk
