@@ -1,424 +1,53 @@
-name: Build EasyEnglish Interactive Lessons APK
+name: Build Android AAB for Play Store
 
 on:
   push:
-    branches: [ main, ana ]
-  workflow_dispatch:
+    branches:
+      - main  # veya 'master' şubeniz hangisiyse
+  workflow_dispatch: # Telefondan GitHub butonuna basarak manuel başlatmanızı sağlar
 
 jobs:
   build:
+    name: Generate Android AAB
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Java JDK 17
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install Capacitor CLI
-        run: npm install -g @capacitor/cli
-
-      - name: Build Web Application
+      - name: Install Dependencies
         run: |
-          mkdir -p www
-          cat << 'EOF' > www/index.html
-          <!DOCTYPE html>
-          <html lang="tr">
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-            <title>easyenglish</title>
-            <script src="https://cdn.tailwindcss.com"></script>
-            <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-            <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-            <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-          </head>
-          <body class="bg-slate-900 text-white min-h-screen select-none font-sans">
-            <div id="root"></div>
-            <script type="text/babel">
-              const { useState } = React;
+          npm ci || npm install
 
-              // Çift Kademeli Ses Motoru
-              let audioCtx = null;
-              const getAudioContext = () => {
-                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                if (audioCtx.state === 'suspended') audioCtx.resume();
-                return audioCtx;
-              };
-
-              const speakWord = (text) => {
-                try {
-                  const ctx = getAudioContext();
-                  if ('speechSynthesis' in window) {
-                    window.speechSynthesis.cancel();
-                    const u = new SpeechSynthesisUtterance(text);
-                    u.lang = 'en-US';
-                    u.rate = 0.85;
-                    window.speechSynthesis.speak(u);
-                  } else {
-                    playSyntheticAudio(text, ctx);
-                  }
-                } catch (e) {
-                  playSyntheticAudio(text, getAudioContext());
-                }
-              };
-
-              const playSyntheticAudio = (text, ctx) => {
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(350, ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.15);
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                gain.gain.setValueAtTime(0.3, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.25);
-                osc.start();
-                osc.stop(ctx.currentTime + 0.25);
-              };
-
-              const playCorrectSound = () => {
-                const ctx = getAudioContext();
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(523.25, ctx.currentTime);
-                osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1);
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                gain.gain.setValueAtTime(0.2, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.25);
-                osc.start();
-                osc.stop(ctx.currentTime + 0.25);
-              };
-
-              const playWrongSound = () => {
-                const ctx = getAudioContext();
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(200, ctx.currentTime);
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                gain.gain.setValueAtTime(0.2, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.3);
-                osc.start();
-                osc.stop(ctx.currentTime + 0.3);
-              };
-
-              // TIKLANABİLİR KONU BAŞLIKLARI VE DERS İÇERİKLERİ
-              const TOPICS = [
-                {
-                  id: 'daily',
-                  title: '1. Günlük Konuşma Kelimeleri',
-                  desc: 'Selamlaşma, nezaket ifadeleri ve temel iletişim.',
-                  icon: '💬',
-                  color: 'bg-sky-500 border-sky-600',
-                  words: [
-                    { word: 'Hello', meaning: 'Merhaba', explanation: 'İnsanlarla karşılaştığınızda en temel selamlama kelimesidir.', example: 'Hello! How are you?', trExample: 'Merhaba! Nasılsın?', img: '👋', options: ['Merhaba', 'Hoşça kal', 'Teşekkürler', 'Evet'], correct: 'Merhaba' },
-                    { word: 'Please', meaning: 'Lütfen', explanation: 'Nezaket göstermek ve bir şey rica etmek için kullanılır.', example: 'Help me, please.', trExample: 'Lütfen bana yardım et.', img: '🙏', options: ['Hayır', 'Lütfen', 'Günaydın', 'Tamam'], correct: 'Lütfen' },
-                    { word: 'Thank you', meaning: 'Teşekkür ederim', explanation: 'Bir iyilik veya ikram sonrasında minnettarlık söylenir.', example: 'Thank you for everything.', trExample: 'Her şey için teşekkür ederim.', img: '🎁', options: ['Rica ederim', 'Önemli değil', 'Teşekkür ederim', 'Hoşça kal'], correct: 'Teşekkür ederim' }
-                  ]
-                },
-                {
-                  id: 'food',
-                  title: '2. Yiyecek & İçecekler',
-                  desc: 'Restoran, kafe ve mutfakta kullanılan temel terimler.',
-                  icon: '🍎',
-                  color: 'bg-emerald-500 border-emerald-600',
-                  words: [
-                    { word: 'Water', meaning: 'Su', explanation: 'En temel yaşam içeceği.', example: 'I need fresh water.', trExample: 'Taze suya ihtiyacım var.', img: '💧', options: ['Kahve', 'Su', 'Çay', 'Süt'], correct: 'Su' },
-                    { word: 'Apple', meaning: 'Elma', explanation: 'Sevilen taze bir meyve.', example: 'An apple a day keeps the doctor away.', trExample: 'Günde bir elma doktoru uzak tutar.', img: '🍎', options: ['Elma', 'Ekmek', 'Peynir', 'Et'], correct: 'Elma' }
-                  ]
-                },
-                {
-                  id: 'travel',
-                  title: '3. Seyahat & Yönler',
-                  desc: 'Ulaşım, havalimanı ve adres sorma ifadeleri.',
-                  icon: '✈️',
-                  color: 'bg-indigo-500 border-indigo-600',
-                  words: [
-                    { word: 'Travel', meaning: 'Seyahat etmek', explanation: 'Bir yerden bir yere gezi amacıyla gitmek.', example: 'I love to travel abroad.', trExample: 'Yurt dışına seyahat etmeyi severim.', img: '✈️', options: ['Yüzmek', 'Seyahat etmek', 'Koşmak', 'Uyumak'], correct: 'Seyahat etmek' }
-                  ]
-                }
-              ];
-
-              function EasyEnglishApp() {
-                const [user, setUser] = useState(null);
-                const [emailInput, setEmailInput] = useState('');
-                const [passwordInput, setPasswordInput] = useState('');
-                const [loginError, setLoginError] = useState('');
-
-                const [activeLanguage, setActiveLanguage] = useState('İNGİLİZCE');
-                const [streakDays, setStreakDays] = useState(621);
-                const [energy, setEnergy] = useState(25);
-                const [levelBadge, setLevelBadge] = useState(18);
-
-                // Tıklanan Konu ve İlerleme Durumu
-                const [selectedTopic, setSelectedTopic] = useState(null);
-                const [wordIndex, setWordIndex] = useState(0);
-                const [selectedOpt, setSelectedOpt] = useState(null);
-                const [feedback, setFeedback] = useState(null);
-
-                const handleLogin = (e) => {
-                  e.preventDefault();
-                  if (passwordInput.length < 6) {
-                    setLoginError('Şifreniz en az 6 karakter olmalıdır!');
-                    return;
-                  }
-                  setLoginError('');
-                  setUser({ email: emailInput });
-                };
-
-                const startTopicLesson = (topic) => {
-                  setSelectedTopic(topic);
-                  setWordIndex(0);
-                  setSelectedOpt(null);
-                  setFeedback(null);
-                };
-
-                const handleAnswer = (option, correct) => {
-                  if (feedback) return;
-                  setSelectedOpt(option);
-                  if (option === correct) {
-                    setFeedback('correct');
-                    playCorrectSound();
-                    setEnergy(prev => prev + 1);
-                  } else {
-                    setFeedback('wrong');
-                    playWrongSound();
-                  }
-                };
-
-                if (!user) {
-                  return (
-                    <div class="max-w-md mx-auto min-h-screen bg-emerald-600 p-6 flex flex-col justify-between text-center select-none">
-                      <div class="mt-10">
-                        <div class="text-7xl mb-3 animate-bounce">🤔</div>
-                        <h1 class="text-4xl font-extrabold text-white">easyenglish</h1>
-                        <p class="text-sm text-emerald-100 font-medium mt-1">Konu Odaklı İnteraktif İngilizce Öğrenimi</p>
-                      </div>
-
-                      <form onSubmit={handleLogin} class="space-y-4 bg-white p-6 rounded-3xl shadow-2xl text-left border border-emerald-100">
-                        <h2 class="text-xl font-bold text-slate-800 text-center">Giriş Yap / Kaydol</h2>
-                        {loginError && (
-                          <div class="p-3 bg-rose-100 border border-rose-300 text-rose-700 text-xs font-bold rounded-xl text-center">
-                            {loginError}
-                          </div>
-                        )}
-                        <div>
-                          <label class="text-xs font-bold text-slate-500">E-posta Adresi</label>
-                          <input type="email" placeholder="ornek@mail.com" required value={emailInput} onChange={(e) => setEmailInput(e.target.value)} class="w-full p-3.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                        </div>
-                        <div>
-                          <label class="text-xs font-bold text-slate-500">Şifre (En az 6 Karakter)</label>
-                          <input type="password" placeholder="••••••••" required value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} class="w-full p-3.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                        </div>
-                        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-xl font-bold text-base shadow-lg shadow-emerald-600/30 transition">
-                          Giriş Yap 🚀
-                        </button>
-                      </form>
-                      <footer class="text-xs text-emerald-100 py-4 font-semibold">🔒 KVKK Korumalı Güvenli Giriş</footer>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div class="max-w-md mx-auto min-h-screen bg-slate-900 text-white flex flex-col justify-between pb-16">
-                    {/* Üst Diller Şeridi */}
-                    <div class="bg-black/90 border-b border-slate-800 px-4 py-3 flex space-x-6 text-xs font-bold tracking-wider overflow-x-auto text-slate-400">
-                      <button onClick={() => setActiveLanguage('İNGİLİZCE')} class={`pb-1 border-b-2 ${activeLanguage === 'İNGİLİZCE' ? 'text-white border-white' : 'border-transparent'}`}>İNGİLİZCE</button>
-                      <button onClick={() => setActiveLanguage('ALMANCA')} class={`pb-1 border-b-2 ${activeLanguage === 'ALMANCA' ? 'text-white border-white' : 'border-transparent'}`}>ALMANCA</button>
-                      <button onClick={() => setActiveLanguage('DUTCH')} class={`pb-1 border-b-2 ${activeLanguage === 'DUTCH' ? 'text-white border-white' : 'border-transparent'}`}>DUTCH</button>
-                    </div>
-
-                    {/* İstatistik Çubuğu */}
-                    <div class="bg-slate-800/90 mx-4 mt-3 p-3 rounded-2xl border border-slate-700 flex justify-between items-center shadow-lg">
-                      <div class="flex items-center space-x-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-700">
-                        <span class="text-base">🇺🇸</span>
-                        <span class="text-xs font-black text-white">{levelBadge}</span>
-                      </div>
-                      <div class="flex items-center space-x-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-700">
-                        <span class="text-sm">🔥</span>
-                        <span class="text-xs font-black text-slate-200">{streakDays} Gün</span>
-                      </div>
-                      <div class="flex items-center space-x-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-700">
-                        <span class="text-sm text-pink-500">⚡</span>
-                        <span class="text-xs font-black text-pink-400">{energy}</span>
-                      </div>
-                    </div>
-
-                    {/* Ana Ekran / Tıklanabilir Konu Listesi */}
-                    <main class="p-4 flex-1 space-y-4">
-                      {!selectedTopic ? (
-                        /* KONU BAŞLIKLARI LİSTESİ (TIKLANABİLİR KARTLAR) */
-                        <div class="space-y-4">
-                          <h2 class="text-sm font-bold text-slate-300 uppercase tracking-wider">Çalışılacak Konuyu Seçin</h2>
-                          {TOPICS.map((topic) => (
-                            <button key={topic.id} onClick={() => startTopicLesson(topic)} class="w-full text-left bg-slate-800 hover:bg-slate-750 p-4 rounded-3xl border border-slate-700 shadow-lg flex items-center justify-between active:scale-98 transition">
-                              <div class="flex items-center space-x-4">
-                                <span class="text-4xl p-3 bg-slate-900 rounded-2xl border border-slate-700">{topic.icon}</span>
-                                <div>
-                                  <h3 class="font-extrabold text-base text-white">{topic.title}</h3>
-                                  <p class="text-xs text-slate-400 mt-1">{topic.desc}</p>
-                                  <span class="inline-block mt-2 text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2.5 py-0.5 rounded-full font-bold">
-                                    {topic.words.length} Kelimelik Ders
-                                  </span>
-                                </div>
-                              </div>
-                              <span class="text-slate-500 text-xl font-bold">➔</span>
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        /* DERS İÇİ VE ÇALIŞMA MODÜLÜ */
-                        <div class="space-y-4">
-                          <div class={`${selectedTopic.color} text-white p-4 rounded-2xl shadow-lg flex justify-between items-center`}>
-                            <div>
-                              <p class="text-[11px] font-bold uppercase tracking-wider opacity-90">{selectedTopic.title}</p>
-                              <h2 class="text-base font-extrabold mt-0.5">Kelime {wordIndex + 1} / {selectedTopic.words.length}</h2>
-                            </div>
-                            <button onClick={() => setSelectedTopic(null)} class="text-xs bg-slate-900/60 hover:bg-slate-900 px-3 py-1.5 rounded-xl font-bold border border-white/20">
-                              ✕ Konulardan Çık
-                            </button>
-                          </div>
-
-                          {/* Kelime Anlatım Kartı */}
-                          {selectedTopic.words[wordIndex] && (
-                            <React.Fragment>
-                              <div class="bg-slate-800 p-5 rounded-3xl border border-slate-700 shadow-md space-y-4">
-                                <div class="text-center py-4 bg-slate-900 rounded-2xl border border-slate-700 space-y-2">
-                                  <span class="text-6xl">{selectedTopic.words[wordIndex].img}</span>
-                                  <h2 class="text-3xl font-black text-white">{selectedTopic.words[wordIndex].word}</h2>
-                                  <p class="text-lg font-bold text-emerald-400">{selectedTopic.words[wordIndex].meaning}</p>
-                                  
-                                  <button onClick={() => speakWord(selectedTopic.words[wordIndex].word)} class="mt-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-500 flex items-center justify-center space-x-1.5 mx-auto active:scale-95 transition">
-                                    <span>🔊 Telaffuz Et</span>
-                                  </button>
-                                </div>
-
-                                <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-700/80 space-y-2">
-                                  <p class="text-xs font-bold text-slate-400">💡 Ders Notu & Açıklama:</p>
-                                  <p class="text-xs text-slate-200">{selectedTopic.words[wordIndex].explanation}</p>
-                                  <hr class="border-slate-700 my-1" />
-                                  <p class="text-xs font-bold text-slate-400">📝 Örnek Cümle Kullanımı:</p>
-                                  <p class="text-xs text-indigo-300 font-bold italic">"{selectedTopic.words[wordIndex].example}"</p>
-                                  <p class="text-xs text-slate-400">"{selectedTopic.words[wordIndex].trExample}"</p>
-                                  <button onClick={() => speakWord(selectedTopic.words[wordIndex].example)} class="text-[11px] text-indigo-400 font-bold underline mt-1 block">
-                                    🔊 Örnek Cümleyi Seslendir
-                                  </button>
-                                </div>
-                              </div>
-
-                              {/* Pekiştirme Sınavı */}
-                              <div class="bg-slate-800 p-5 rounded-3xl border border-slate-700 shadow-md space-y-3">
-                                <h3 class="text-xs font-bold text-slate-300 text-center">Doğru Türkçe Karşılığı Seçin</h3>
-                                <div class="grid grid-cols-2 gap-3">
-                                  {selectedTopic.words[wordIndex].options.map((opt, i) => (
-                                    <button key={i} onClick={() => handleAnswer(opt, selectedTopic.words[wordIndex].correct)} class="p-3.5 rounded-2xl text-xs font-bold border bg-slate-700 text-white border-slate-600 hover:bg-slate-650 transition active:scale-95">
-                                      {opt}
-                                    </button>
-                                  ))}
-                                </div>
-
-                                {feedback && (
-                                  <div class={`p-4 rounded-2xl border flex flex-col items-center space-y-3 ${feedback === 'correct' ? 'bg-emerald-950 border-emerald-500 text-emerald-200' : 'bg-rose-950 border-rose-500 text-rose-200'}`}>
-                                    <h4 class="font-extrabold text-sm">{feedback === 'correct' ? 'Tebrikler! Doğru Cevap 🎉' : 'Yanlış Cevap ❌'}</h4>
-                                    
-                                    {feedback === 'correct' && (
-                                      <div class="bg-slate-900 p-3 rounded-xl border border-emerald-500/40 text-center animate-bounce">
-                                        <span class="text-4xl">{selectedTopic.words[wordIndex].img}</span>
-                                        <p class="text-xs font-bold text-white mt-1">{selectedTopic.words[wordIndex].word} = {selectedTopic.words[wordIndex].meaning}</p>
-                                      </div>
-                                    )}
-
-                                    <button onClick={() => {
-                                      if (wordIndex < selectedTopic.words.length - 1) {
-                                        setWordIndex(prev => prev + 1);
-                                      } else {
-                                        setSelectedTopic(null);
-                                        alert('Tebrikler! Konudaki tüm dersleri tamamladınız. 🚀');
-                                      }
-                                      setSelectedOpt(null);
-                                      setFeedback(null);
-                                    }} class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl text-xs shadow-md active:scale-95 transition">
-                                      {wordIndex < selectedTopic.words.length - 1 ? 'Sonraki Kelimeye Geç ➔' : 'Konuyu Tamamla 🏆'}
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            </React.Fragment>
-                          )}
-                        </div>
-                      )}
-                    </main>
-
-                    {/* Alt Gezinme Barı */}
-                    <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-slate-900 border-t border-slate-800 flex justify-around py-2.5 backdrop-blur-md">
-                      <button onClick={() => setSelectedTopic(null)} class={`text-xs flex flex-col items-center ${!selectedTopic ? 'text-sky-400 font-extrabold' : 'text-slate-400'}`}>
-                        <span class="text-lg">🏠</span>
-                        <span>Konular</span>
-                      </button>
-                      <button class="text-xs flex flex-col items-center text-slate-400">
-                        <span class="text-lg">🗺️</span>
-                        <span>Harita</span>
-                      </button>
-                      <button class="text-xs flex flex-col items-center text-slate-400">
-                        <span class="text-lg">👑</span>
-                        <span>Profil</span>
-                      </button>
-                    </nav>
-                  </div>
-                );
-              }
-
-              ReactDOM.createRoot(document.getElementById('root')).render(<EasyEnglishApp />);
-            </script>
-          </body>
-          </html>
-          EOF
-
-      - name: Initialize Modern Android Project (Target SDK 34)
+      - name: Build Web Assets
         run: |
-          cat << 'EOF' > package.json
-          {
-            "name": "easyenglish",
-            "version": "1.0.0",
-            "dependencies": {
-              "@capacitor/core": "^6.0.0",
-              "@capacitor/android": "^6.0.0"
-            },
-            "devDependencies": {
-              "@capacitor/cli": "^6.0.0"
-            }
-          }
-          EOF
-          npm install
-          npx cap init easyenglish com.easyenglish.app --web-dir www
-          npx cap add android
+          npm run build
 
-      - name: Update Target SDK & Build Configuration
+      - name: Sync Capacitor Android
         run: |
-          sed -i 's/targetSdkVersion = .*/targetSdkVersion = 34/' android/variables.gradle
-          sed -i 's/compileSdkVersion = .*/compileSdkVersion = 34/' android/variables.gradle
-          npx cap copy android
+          npx cap sync android || true
 
-      - name: Build Modern Debug APK
+      - name: Build Release AAB Package
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew bundleRelease
 
-      - name: Upload Interactive Lessons APK Artifact
+      - name: Upload AAB Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: easyenglish-interactive-lessons-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: easyenglish-release-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 30
