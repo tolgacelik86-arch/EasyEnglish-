@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, ana ]
   workflow_dispatch:
 
 jobs:
@@ -15,41 +15,53 @@ jobs:
           node-version: 20
       - uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
+          distribution: 'temurin'
           java-version: '17'
 
-      - name: Create Web App Framework
+      - name: Create Web Project
         run: |
-          mkdir -p src public android/app/src/main/assets
-          cat << 'EOF' > package.json
-          {
-            "name": "easyenglish",
-            "private": true,
-            "version": "1.0.0",
-            "type": "module",
-            "scripts": { "build": "vite build" },
-            "dependencies": { "react": "^18.2.0", "react-dom": "^18.2.0", "lucide-react": "^0.263.1" },
-            "devDependencies": { "@types/react": "^18.2.15", "@vitejs/plugin-react": "^4.0.3", "vite": "^4.4.5" }
-          }
+          mkdir -p www
+          cat << 'EOF' > www/index.html
+          <!DOCTYPE html>
+          <html lang="tr">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>easyenglish</title>
+          </head>
+          <body>
+            <div id="root"></div>
+            <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+            <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+            <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+            <script type="text/babel">
+              const { useState, useEffect } = React;
+              function App() {
+                return (
+                  <div style={{padding: 20, fontFamily: 'sans-serif', textAlign: 'center'}}>
+                    <h1>easyenglish</h1>
+                    <p>Uygulamanız Başarıyla Yüklendi!</p>
+                  </div>
+                );
+              }
+              ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+            </script>
+          </body>
+          </html>
           EOF
 
-      - name: Install Dependencies
-        run: npm install
-
-      - name: Build Web App
-        run: npx vite build --outDir dist
-
-      - name: Build Android APK
+      - name: Setup Cordova
         run: |
-          npm install -g cordova
-          cordova create hyhybrid com.easyenglish.app EasyEnglish
-          cd hyhybrid
+          sudo npm install -g cordova
+          cordova create app com.easyenglish.app EasyEnglish
+          cd app
           cordova platform add android
-          cp -r ../dist/* www/
+          rm -rf www/*
+          cp -r ../www/* www/
           cordova build android --debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: easyenglish-apk
-          path: hyhybrid/platforms/android/app/build/outputs/apk/debug/app-debug.apk
+          path: app/platforms/android/app/build/outputs/apk/debug/app-debug.apk
