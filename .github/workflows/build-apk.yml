@@ -1,4 +1,4 @@
-name: Build EasyEnglish Header Bar APK
+name: Build EasyEnglish Fixed APK
 
 on:
   push:
@@ -190,7 +190,7 @@ jobs:
 
                 return (
                   <div class="max-w-md mx-auto min-h-screen bg-slate-900 text-white flex flex-col justify-between pb-16">
-                    {/* Üst Dil Seçim Tab Bar (Duolingo Tarzı) */}
+                    {/* Üst Dil Seçim Tab Bar */}
                     <div class="bg-black/90 border-b border-slate-800 px-4 py-3 flex space-x-6 text-xs font-bold tracking-wider overflow-x-auto text-slate-400">
                       <button onClick={() => setActiveLanguage('İNGİLİZCE')} class={`pb-1 border-b-2 ${activeLanguage === 'İNGİLİZCE' ? 'text-white border-white' : 'border-transparent'}`}>
                         İNGİLİZCE
@@ -203,7 +203,7 @@ jobs:
                       </button>
                     </div>
 
-                    {/* İstatistikler Üst Kartı (Bayrak, Günlük Çalışma Serisi 🔥, Puan ⚡) */}
+                    {/* İstatistikler Üst Kartı */}
                     <div class="bg-slate-800/90 mx-4 mt-3 p-3 rounded-2xl border border-slate-700 flex justify-between items-center shadow-lg">
                       <div class="flex items-center space-x-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-700">
                         <span class="text-base">🇺🇸</span>
@@ -329,23 +329,6 @@ jobs:
           npx cap init easyenglish com.easyenglish.app --web-dir www
           npx cap add android
 
-      - name: Generate Thinking Monkey App Icon
-        run: |
-          mkdir -p android/app/src/main/res/mipmap-hdpi android/app/src/main/res/mipmap-mdpi android/app/src/main/res/mipmap-xhdpi android/app/src/main/res/mipmap-xxhdpi android/app/src/main/res/mipmap-xxxhdpi
-          cat << 'EOF' > android/app/src/main/res/mipmap-hdpi/ic_launcher.xml
-          <vector xmlns:android="http://schemas.android.com/apk/res/android"
-              android:width="108dp"
-              android:height="108dp"
-              android:viewportWidth="108"
-              android:viewportHeight="108">
-              <path android:fillColor="#10B981" android:pathData="M0,0h108v108h-108z"/>
-          </vector>
-          EOF
-          cp android/app/src/main/res/mipmap-hdpi/ic_launcher.xml android/app/src/main/res/mipmap-mdpi/ic_launcher.xml
-          cp android/app/src/main/res/mipmap-hdpi/ic_launcher.xml android/app/src/main/res/mipmap-xhdpi/ic_launcher.xml
-          cp android/app/src/main/res/mipmap-hdpi/ic_launcher.xml android/app/src/main/res/mipmap-xxhdpi/ic_launcher.xml
-          cp android/app/src/main/res/mipmap-hdpi/ic_launcher.xml android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.xml
-
       - name: Update Target SDK & Build Configuration
         run: |
           sed -i 's/targetSdkVersion = .*/targetSdkVersion = 34/' android/variables.gradle
@@ -358,8 +341,8 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: Upload Header Bar APK Artifact
+      - name: Upload Fixed APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: easyenglish-header-bar-apk
+          name: easyenglish-fixed-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
